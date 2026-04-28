@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoDataCleaner — Dataset Cleaning & Audit Log</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0ede8;
+    --border: #e0ddd8;
+    --border2: #ccc9c3;
+    --text: #1a1917;
+    --text2: #6b6860;
+    --text3: #9b9890;
+    --accent: #1a56db;
+    --accent-bg: #eff5ff;
+    --green: #1d9e75;
+    --green-bg: #eaf3de;
+    --green-text: #3b6d11;
+    --amber: #ba7517;
+    --amber-bg: #faeeda;
+    --red: #a32d2d;
+    --red-bg: #fcebeb;
+    --teal-bg: #e1f5ee;
+    --teal-text: #0f6e56;
+    --blue-bg: #e6f1fb;
+    --blue-text: #185fa5;
+    --coral-bg: #faece7;
+    --coral-text: #993c1d;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --font: 'Sora', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* NAV */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; }
+  .nav-logo { width: 28px; height: 28px; background: var(--text); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .nav-logo svg { width: 16px; height: 16px; }
+  .nav-title { font-size: 15px; font-weight: 600; }
+  .nav-badge { font-size: 11px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 9px; font-family: var(--mono); }
+
+  /* LAYOUT */
+  .page { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+  .hero { text-align: center; margin-bottom: 2.5rem; }
+  .hero h1 { font-size: 28px; font-weight: 600; margin-bottom: 0.5rem; }
+  .hero p { font-size: 15px; color: var(--text2); max-width: 520px; margin: 0 auto; line-height: 1.6; }
+
+  /* UPLOAD CARD */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 1rem; }
+
+  .drop-zone { border: 2px dashed var(--border2); border-radius: var(--radius); padding: 3rem 1.5rem; text-align: center; cursor: pointer; transition: all 0.15s; background: var(--bg); }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-bg); }
+  .drop-icon { width: 48px; height: 48px; background: var(--surface2); border-radius: 10px; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; }
+  .drop-label { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .drop-sub { font-size: 13px; color: var(--text2); margin-bottom: 1rem; }
+  .browse-btn { font-family: var(--font); font-size: 13px; font-weight: 500; border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 7px 18px; background: var(--surface); color: var(--text); cursor: pointer; transition: background 0.12s; }
+  .browse-btn:hover { background: var(--surface2); }
+
+  .file-chip { display: flex; align-items: center; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; margin-top: 1rem; }
+  .chip-icon { width: 36px; height: 36px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; font-weight: 500; flex-shrink: 0; }
+  .chip-csv { background: var(--green-bg); color: var(--green-text); }
+  .chip-xlsx { background: var(--teal-bg); color: var(--teal-text); }
+  .chip-name { font-size: 13px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip-size { font-size: 12px; color: var(--text2); flex-shrink: 0; font-family: var(--mono); }
+  .chip-remove { background: none; border: none; cursor: pointer; color: var(--text3); padding: 4px; border-radius: 4px; display: flex; line-height: 1; }
+  .chip-remove:hover { color: var(--red); background: var(--red-bg); }
+
+  /* OPTIONS */
+  .opts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all 0.12s; user-select: none; }
+  .opt-card:hover { border-color: var(--border2); }
+  .opt-card.active { border-color: var(--accent); background: var(--accent-bg); }
+  .opt-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .opt-label { font-size: 13px; font-weight: 500; }
+  .opt-check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; transition: all 0.12s; flex-shrink: 0; }
+  .opt-card.active .opt-check { background: var(--accent); border-color: var(--accent); }
+  .opt-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+  /* RUN BTN */
+  .run-btn { width: 100%; padding: 12px; font-family: var(--font); font-size: 14px; font-weight: 600; background: var(--text); color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer; margin-top: 1rem; transition: opacity 0.15s; letter-spacing: 0.01em; }
+  .run-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .run-btn:not(:disabled):hover { opacity: 0.85; }
+
+  /* PROGRESS */
+  .stage-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .stage-row:last-child { border-bottom: none; }
+  .s-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); flex-shrink: 0; transition: background 0.2s; }
+  .s-dot.done { background: var(--green); }
+  .s-dot.active { background: var(--accent); animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .s-label { font-size: 13px; color: var(--text2); flex: 1; }
+  .s-label.done { color: var(--text); }
+  .s-count { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+
+  /* METRICS */
+  .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .m-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .m-value { font-size: 22px; font-weight: 600; font-family: var(--mono); color: var(--text); }
+  .m-value.green { color: var(--green); }
+  .m-value.amber { color: var(--amber); }
+
+  /* AUDIT TABLE */
+  .table-wrap { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 620px; }
+  thead th { background: var(--surface2); padding: 8px 10px; text-align: left; font-weight: 500; font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface2); }
+  .mono-cell { font-family: var(--mono); font-size: 11px; }
+
+  .pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+  .pill-green { background: var(--green-bg); color: var(--green-text); }
+  .pill-blue { background: var(--blue-bg); color: var(--blue-text); }
+  .pill-amber { background: var(--amber-bg); color: var(--amber); }
+  .pill-coral { background: var(--coral-bg); color: var(--coral-text); }
+  .pill-teal { background: var(--teal-bg); color: var(--teal-text); }
+  .pill-red { background: var(--red-bg); color: var(--red); }
+
+  /* DOWNLOADS */
+  .dl-row { display: flex; gap: 10px; margin-top: 1rem; }
+  .dl-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font); font-size: 13px; font-weight: 500; padding: 10px 14px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); cursor: pointer; transition: background 0.12s; }
+  .dl-btn:hover { background: var(--surface2); }
+  .dl-btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+  .dl-btn.primary:hover { opacity: 0.85; }
+
+  .err-box { background: var(--red-bg); border: 1px solid #f0a0a0; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--red); margin-top: 0.75rem; }
+
+  .hidden { display: none !important; }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .audit-sub { font-size: 12px; color: var(--text2); }
+
+  footer { text-align: center; color: var(--text3); font-size: 12px; margin-top: 3rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="white"/><rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity="0.3"/></svg>
+    </div>
+    <span class="nav-title">AutoDataCleaner</span>
+  </div>
+  <span class="nav-badge">v1.0 — Backend ETL Engine</span>
+</nav>
+
+<div class="page">
+  <div class="hero">
+    <h1>Automatic Dataset Cleaning &amp; Audit Log Generator</h1>
+    <p>Upload a dirty CSV or Excel file. Get a cleaned dataset and a full row-level audit log — every change tracked, every reason recorded.</p>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="card">
+    <p class="card-title">1 — Upload your dataset</p>
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 16V8M12 8L9 11M12 8L15 11" stroke="#6b6860" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="#6b6860" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <p class="drop-label">Drop your CSV or Excel file here</p>
+      <p class="drop-sub">Supports .csv, .xlsx, .xls — up to 10 MB</p>
+      <button class="browse-btn" id="browseBtn">Browse file</button>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display:none">
+    </div>
+    <div id="fileChip" class="hidden"></div>
+    <div id="errBox" class="hidden"></div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="card hidden" id="optionsCard">
+    <p class="card-title">2 — Cleaning options</p>
+    <div class="opts-grid">
+      <div class="opt-card active" data-opt="dupes">
+        <div class="opt-header">
+          <span class="opt-label">Remove duplicates</span>
+          <div class="opt-check"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <p class="opt-desc">Exact duplicate rows removed — first occurrence kept.</p>
+      </div>
+      <div class="opt-card active" data-opt="nulls">
+        <div class="opt-header">
+          <span class="opt-label">Fill null values</span>
+          <div class="opt-check"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <p class="opt-desc">Mean / median / mode chosen automatically per column type.</p>
+      </div>
+      <div class="opt-card active" data-opt="text">
+        <div class="opt-header">
+          <span class="opt-label">Standardize text</span>
+          <div class="opt-check"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <p class="opt-desc">Casing, whitespace, and control characters normalized.</p>
+      </div>
+      <div class="opt-card active" data-opt="dates">
+        <div class="opt-header">
+          <span class="opt-label">Normalize dates</span>
+          <div class="opt-check"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <p class="opt-desc">Mixed date formats unified to ISO 8601 (YYYY-MM-DD).</p>
+      </div>
+    </div>
+    <button class="run-btn" id="runBtn">Clean dataset →</button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="card hidden" id="progressCard">
+    <p class="card-title">3 — Cleaning pipeline</p>
+    <div id="progressWrap"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="resultsCard" class="hidden">
+    <div class="card">
+      <p class="card-title">4 — Results summary</p>
+      <div class="metrics-grid" id="metricsGrid"></div>
+      <div class="metrics-grid" id="metricsGrid2"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <p class="card-title" style="margin:0">Audit log <span id="auditCountLabel" class="audit-sub"></span></p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:52px">Row</th>
+              <th style="width:120px">Column</th>
+              <th style="width:100px">Old value</th>
+              <th style="width:100px">New value</th>
+              <th style="width:130px">Rule</th>
+              <th>Reason</th>
+              <th style="width:70px">Time</th>
+            </tr>
+          </thead>
+          <tbody id="auditBody"></tbody>
+        </table>
+      </div>
+      <div class="dl-row">
+        <button class="dl-btn primary" id="dlCleaned">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M7 9l-2.5-2.5M7 9l2.5-2.5M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download cleaned_dataset.csv
+        </button>
+        <button class="dl-btn" id="dlAudit">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M7 9l-2.5-2.5M7 9l2.5-2.5M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download audit_log.csv
+        </button>
+        <button class="dl-btn" id="dlSummary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M7 9l-2.5-2.5M7 9l2.5-2.5M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download summary_report.txt
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer>AutoDataCleaner v1.0 — Backend ETL Engine &nbsp;·&nbsp; All processing runs in your browser. No data is uploaded to any server.</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const dropZone = $('dropZone'), fileInput = $('fileInput'), browseBtn = $('browseBtn');
+const fileChip = $('fileChip'), errBox = $('errBox');
+const optionsCard = $('optionsCard'), progressCard = $('progressCard'), resultsCard = $('resultsCard');
+const progressWrap = $('progressWrap'), runBtn = $('runBtn');
+
+let currentFile = null, parsedData = null, cleanedData = null, auditLog = [];
+
+const NULL_VALS = new Set(['','nan','none','null','na','n/a','n/a','null','none','nan','undefined','—','–']);
+const isNull = v => v === undefined || v === null || NULL_VALS.has(String(v).trim().toLowerCase());
+
+const PILL = {
+  DUPLICATE_REMOVED:      ['pill-red',   'Dup removed'],
+  EMPTY_ROW_REMOVED:      ['pill-coral', 'Empty row'],
+  NULL_FILLED_MEAN:       ['pill-blue',  'Null → mean'],
+  NULL_FILLED_MEDIAN:     ['pill-blue',  'Null → median'],
+  NULL_FILLED_MODE:       ['pill-blue',  'Null → mode'],
+  TEXT_STRIPPED:          ['pill-teal',  'Whitespace'],
+  TEXT_TITLE_CASED:       ['pill-teal',  'Title cased'],
+  CATEGORY_CANONICALIZED: ['pill-amber', 'Canonical'],
+  DATE_STANDARDIZED:      ['pill-green', 'Date norm'],
+  TYPE_COERCED_NUMERIC:   ['pill-blue',  'Type coerce'],
+  INVALID_NUMERIC_NULLED: ['pill-coral', 'Invalid → null'],
+  CONTROL_CHARS_REMOVED:  ['pill-teal',  'Ctrl chars'],
+};
+
+function showErr(msg) { errBox.textContent = msg; errBox.className = 'err-box'; }
+function hideErr() { errBox.className = 'hidden'; }
+function show(el) { el.classList.remove('hidden'); }
+function hide(el) { el.classList.add('hidden'); }
+
+browseBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+document.querySelectorAll('.opt-card').forEach(c => c.addEventListener('click', () => c.classList.toggle('active')));
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function handleFile(file) {
+  hideErr();
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['csv','xlsx','xls'].includes(ext)) { showErr('Unsupported format. Please upload .csv or .xlsx/.xls'); return; }
+  if (file.size > 10*1024*1024) { showErr('File too large — maximum is 10 MB.'); return; }
+  currentFile = file;
+  const isCSV = ext === 'csv';
+  fileChip.innerHTML = `<div class="file-chip">
+    <div class="chip-icon ${isCSV?'chip-csv':'chip-xlsx'}">${isCSV?'CSV':'XLSX'}</div>
+    <span class="chip-name">${file.name}</span>
+    <span class="chip-size">${fmtBytes(file.size)}</span>
+    <button class="chip-remove" id="removeBtn" title="Remove">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>`;
+  show(fileChip); show(optionsCard);
+  hide(progressCard); hide(resultsCard);
+
+  $('removeBtn').addEventListener('click', () => {
+    currentFile = null; parsedData = null;
+    hide(fileChip); hide(optionsCard); hide(progressCard); hide(resultsCard);
+    fileInput.value = ''; hideErr();
+  });
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    parsedData = isCSV ? parseCSV(e.target.result) : parseXLSX(e.target.result);
+    if (!parsedData || !parsedData.rows.length) showErr('Could not parse file — it may be empty or malformed.');
+  };
+  if (isCSV) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  if (lines.length < 2) return null;
+  function splitCSVLine(line) {
+    const res = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    res.push(cur.trim()); return res;
+  }
+  const headers = splitCSVLine(lines[0]).map(h => h.replace(/^"|"$/g,''));
+  const rows = lines.slice(1).map((l, i) => {
+    const vals = splitCSVLine(l).map(v => v.replace(/^"|"$/g,''));
+    const row = {__rowId: i};
+    headers.forEach((h, j) => row[h] = vals[j] ?? '');
+    return row;
+  });
+  return {headers, rows};
+}
+
+function parseXLSX(buffer) {
+  try {
+    const wb = XLSX.read(new Uint8Array(buffer), {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    if (data.length < 2) return null;
+    const headers = data[0].map(String);
+    const rows = data.slice(1).map((r, i) => {
+      const row = {__rowId: i};
+      headers.forEach((h, j) => row[h] = String(r[j] ?? ''));
+      return row;
+    });
+    return {headers, rows};
+  } catch(e) { return null; }
+}
+
+runBtn.addEventListener('click', async () => {
+  if (!parsedData) { showErr('Please upload a valid file first.'); return; }
+  runBtn.disabled = true;
+  const opts = {
+    dupes: !!document.querySelector('[data-opt="dupes"].active'),
+    nulls: !!document.querySelector('[data-opt="nulls"].active'),
+    text:  !!document.querySelector('[data-opt="text"].active'),
+    dates: !!document.querySelector('[data-opt="dates"].active'),
+  };
+  show(progressCard); hide(resultsCard);
+  await runCleaning(opts);
+  runBtn.disabled = false;
+});
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+async function runCleaning(opts) {
+  auditLog = []; cleanedData = null;
+  const stages = [
+    {id:'profile', label:'Profiling data structure & quality'},
+    {id:'empty',   label:'Removing fully-empty rows'},
+    {id:'dupes',   label:'Detecting & removing duplicates'},
+    {id:'text',    label:'Stripping whitespace & control chars'},
+    {id:'case',    label:'Standardizing text casing'},
+    {id:'cats',    label:'Canonicalizing category values'},
+    {id:'dates',   label:'Normalizing date formats to ISO 8601'},
+    {id:'types',   label:'Coercing numeric column types'},
+    {id:'nulls',   label:'Filling null values (mean/median/mode)'},
+    {id:'done',    label:'Generating audit log & outputs'},
+  ];
+
+  progressWrap.innerHTML = stages.map(s => `
+    <div class="stage-row">
+      <div class="s-dot" id="dot-${s.id}"></div>
+      <span class="s-label" id="lbl-${s.id}">${s.label}</span>
+      <span class="s-count" id="cnt-${s.id}"></span>
+    </div>`).join('');
+
+  function setStage(id, state, count='') {
+    const dot = $(`dot-${id}`), lbl = $(`lbl-${id}`), cnt = $(`cnt-${id}`);
+    if (dot) dot.className = 's-dot ' + state;
+    if (lbl) lbl.className = 's-label ' + (state==='done'?'done':'');
+    if (cnt) cnt.textContent = count;
+  }
+
+  const tsNow = () => new Date().toTimeString().slice(0,8);
+  const log = (rowId, col, old, nw, reason, rule) =>
+    auditLog.push({rowId, col, old: String(old??''), nw: String(nw??''), reason, rule, ts: tsNow()});
+
+  let rows = parsedData.rows.map(r => ({...r}));
+  const headers = parsedData.headers;
+  const totalBefore = rows.length;
+
+  // PROFILE
+  setStage('profile','active');
+  await delay(200);
+  setStage('profile','done', `${totalBefore} rows × ${headers.length} cols`);
+
+  // EMPTY ROWS
+  setStage('empty','active');
+  await delay(150);
+  let emptyCount = 0;
+  rows = rows.filter(row => {
+    if (headers.every(h => isNull(row[h]))) {
+      log(row.__rowId, '[ENTIRE ROW]', '<row data>', 'DELETED', 'All columns are null or empty', 'EMPTY_ROW_REMOVED');
+      emptyCount++; return false;
+    }
+    return true;
+  });
+  setStage('empty','done', emptyCount ? `−${emptyCount} rows` : 'none found');
+
+  // DUPLICATES
+  setStage('dupes','active');
+  await delay(200);
+  let dupCount = 0;
+  if (opts.dupes) {
+    const seen = new Set(); const next = [];
+    rows.forEach(row => {
+      const key = headers.map(h => String(row[h]??'')).join('\x00');
+      if (seen.has(key)) { log(row.__rowId,'[ENTIRE ROW]','<row data>','DELETED','Exact duplicate of a previous row','DUPLICATE_REMOVED'); dupCount++; }
+      else { seen.add(key); next.push(row); }
+    });
+    rows = next;
+  }
+  setStage('dupes','done', opts.dupes ? (dupCount ? `−${dupCount} rows` : 'none found') : 'skipped');
+
+  // WHITESPACE
+  setStage('text','active');
+  await delay(200);
+  let textCount = 0;
+  rows.forEach(row => {
+    headers.forEach(h => {
+      if (isNull(row[h])) return;
+      const orig = String(row[h]);
+      const cleaned = orig.replace(/[\x00-\x1F\x7F]/g,'').trim().replace(/  +/g,' ');
+      if (cleaned !== orig) { log(row.__rowId, h, orig, cleaned, 'Whitespace stripped and control chars removed', 'TEXT_STRIPPED'); row[h] = cleaned; textCount++; }
+    });
+  });
+  setStage('text','done', textCount ? `${textCount} fixes` : 'clean');
+
+  // CASING
+  setStage('case','active');
+  await delay(200);
+  let caseCount = 0;
+  if (opts.text) {
+    headers.forEach(h => {
+      const vals = rows.map(r => String(r[h]??'')).filter(v => !isNull(v));
+      if (!vals.length) return;
+      const numScore = vals.filter(v => !isNaN(parseFloat(v))).length / vals.length;
+      if (numScore > 0.6) return;
+      const lowerMap = {};
+      vals.forEach(v => { const k = v.toLowerCase(); if (!lowerMap[k]) lowerMap[k] = []; if (!lowerMap[k].includes(v)) lowerMap[k].push(v); });
+      const hasMixed = Object.values(lowerMap).some(arr => arr.length > 1);
+      if (!hasMixed) return;
+      rows.forEach(row => {
+        if (isNull(row[h])) return;
+        const orig = String(row[h]);
+        const titled = orig.trim().split(' ').map(w => w.length > 1 && w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        if (titled !== orig.trim()) { log(row.__rowId, h, orig, titled, 'Inconsistent casing standardized to Title Case', 'TEXT_TITLE_CASED'); row[h] = titled; caseCount++; }
+      });
+    });
+  }
+  setStage('case','done', opts.text ? (caseCount ? `${caseCount} fixes` : 'none') : 'skipped');
+
+  // CATEGORIES
+  setStage('cats','active');
+  await delay(200);
+  let catCount = 0;
+  const GENDER = {male:'Male',m:'Male',man:'Male',female:'Female',f:'Female',woman:'Female',other:'Other','non-binary':'Non-Binary',nb:'Non-Binary'};
+  const YESNO  = {yes:'Yes',y:'Yes','true':'Yes',no:'No',n:'No','false':'No'};
+  headers.forEach(h => {
+    const vals = rows.map(r => String(r[h]??'')).filter(v => !isNull(v));
+    if (!vals.length) return;
+    const lower = vals.map(v => v.toLowerCase().trim());
+    const gScore = lower.filter(v => v in GENDER).length / vals.length;
+    const yScore = lower.filter(v => v in YESNO).length  / vals.length;
+    const map = gScore > 0.3 ? GENDER : yScore > 0.3 ? YESNO : null;
+    if (!map) return;
+    rows.forEach(row => {
+      if (isNull(row[h])) return;
+      const orig = String(row[h]); const mapped = map[orig.toLowerCase().trim()];
+      if (mapped && mapped !== orig) { log(row.__rowId, h, orig, mapped, 'Mapped to canonical vocabulary form', 'CATEGORY_CANONICALIZED'); row[h] = mapped; catCount++; }
+    });
+  });
+  setStage('cats','done', catCount ? `${catCount} fixes` : 'none');
+
+  // DATES
+  setStage('dates','active');
+  await delay(250);
+  let dateCount = 0;
+  if (opts.dates) {
+    const fmts = [
+      [/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, (s,d,m,y) => `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`],
+      [/^(\d{1,2})-(\d{1,2})-(\d{4})$/,   (s,d,m,y) => `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`],
+      [/^(\d{4})\/(\d{2})\/(\d{2})$/,      (s,y,m,d) => `${y}-${m}-${d}`],
+      [/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (\d{4})$/i, (s,d,mon,y) => {
+        const mm={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        return `${y}-${mm[mon.toLowerCase().slice(0,3)]}-${d.padStart(2,'0')}`;
+      }],
+      [/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (\d{1,2}), (\d{4})$/i, (s,mon,d,y) => {
+        const mm={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        return `${y}-${mm[mon.toLowerCase().slice(0,3)]}-${d.padStart(2,'0')}`;
+      }],
+    ];
+    headers.forEach(h => {
+      const sample = rows.map(r=>String(r[h]??'')).filter(v=>!isNull(v)).slice(0,20);
+      const score = sample.filter(v => fmts.some(([re])=>re.test(v.trim()))).length / Math.max(sample.length,1);
+      if (score < 0.25) return;
+      rows.forEach(row => {
+        if (isNull(row[h])) return;
+        const orig = String(row[h]).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(orig)) return;
+        for (const [re, fn] of fmts) {
+          if (re.test(orig)) { const nw = orig.replace(re, fn); if (nw !== orig) { log(row.__rowId, h, orig, nw, 'Date standardized to ISO 8601 (YYYY-MM-DD)', 'DATE_STANDARDIZED'); row[h] = nw; dateCount++; break; } }
+        }
+      });
+    });
+  }
+  setStage('dates','done', opts.dates ? (dateCount ? `${dateCount} fixes` : 'none') : 'skipped');
+
+  // NUMERIC TYPES
+  setStage('types','active');
+  await delay(200);
+  let typeCount = 0;
+  headers.forEach(h => {
+    const vals = rows.map(r=>String(r[h]??'')).filter(v=>!isNull(v));
+    if (!vals.length) return;
+    const numScore = vals.filter(v=>!isNaN(parseFloat(v))).length / vals.length;
+    if (numScore < 0.6) return;
+    rows.forEach(row => {
+      if (isNull(row[h])) return;
+      const orig = String(row[h]).trim();
+      if (isNaN(parseFloat(orig))) { log(row.__rowId, h, orig, 'NULL', 'Non-numeric string in a numeric column nulled out', 'INVALID_NUMERIC_NULLED'); row[h] = ''; typeCount++; }
+    });
+  });
+  setStage('types','done', typeCount ? `${typeCount} fixed` : 'clean');
+
+  // NULL FILL
+  setStage('nulls','active');
+  await delay(300);
+  let nullCount = 0;
+  if (opts.nulls) {
+    headers.forEach(h => {
+      const allVals = rows.map(r => r[h]);
+      const nonNull = allVals.filter(v => !isNull(v));
+      if (!nonNull.length) return;
+      const nums = nonNull.map(v=>parseFloat(String(v))).filter(v=>!isNaN(v));
+      let fill, rule, reason;
+      if (nums.length / nonNull.length > 0.6) {
+        const sorted = [...nums].sort((a,b)=>a-b);
+        const mean = nums.reduce((s,v)=>s+v,0)/nums.length;
+        const median = sorted[Math.floor(sorted.length/2)];
+        const skew = Math.abs(mean - median);
+        if (skew > mean * 0.1) { fill = +median.toFixed(4); rule = 'NULL_FILLED_MEDIAN'; reason = `Null filled with column median (${fill})`; }
+        else { fill = +mean.toFixed(4); rule = 'NULL_FILLED_MEAN'; reason = `Null filled with column mean (${fill})`; }
+      } else {
+        const freq = {}; nonNull.forEach(v => { const k=String(v); freq[k]=(freq[k]||0)+1; });
+        fill = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0][0];
+        rule = 'NULL_FILLED_MODE'; reason = `Null filled with column mode ('${fill}')`;
+      }
+      rows.forEach(row => {
+        if (isNull(row[h])) { log(row.__rowId, h, 'NULL', fill, reason, rule); row[h] = fill; nullCount++; }
+      });
+    });
+  }
+  setStage('nulls','done', opts.nulls ? (nullCount ? `${nullCount} filled` : 'none') : 'skipped');
+
+  // DONE
+  setStage('done','active');
+  await delay(200);
+  cleanedData = {headers, rows};
+  setStage('done','done', `${rows.length} rows cleaned`);
+
+  showResults(totalBefore, rows.length);
+}
+
+function showResults(before, after) {
+  const dupRem  = auditLog.filter(e=>e.rule==='DUPLICATE_REMOVED').length;
+  const nullFix = auditLog.filter(e=>e.rule.startsWith('NULL_FILLED')).length;
+  const dateFix = auditLog.filter(e=>e.rule==='DATE_STANDARDIZED').length;
+  const textFix = auditLog.filter(e=>['TEXT_STRIPPED','TEXT_TITLE_CASED','CATEGORY_CANONICALIZED'].includes(e.rule)).length;
+  const typeFix = auditLog.filter(e=>['TYPE_COERCED_NUMERIC','INVALID_NUMERIC_NULLED'].includes(e.rule)).length;
+  const emptyRem= auditLog.filter(e=>e.rule==='EMPTY_ROW_REMOVED').length;
+
+  $('metricsGrid').innerHTML = `
+    <div class="metric"><p class="m-label">Rows before</p><p class="m-value">${before.toLocaleString()}</p></div>
+    <div class="metric"><p class="m-label">Rows after</p><p class="m-value green">${after.toLocaleString()}</p></div>
+    <div class="metric"><p class="m-label">Audit entries</p><p class="m-value amber">${auditLog.length.toLocaleString()}</p></div>`;
+  $('metricsGrid2').innerHTML = `
+    <div class="metric"><p class="m-label">Duplicates removed</p><p class="m-value">${dupRem}</p></div>
+    <div class="metric"><p class="m-label">Nulls filled</p><p class="m-value">${nullFix}</p></div>
+    <div class="metric"><p class="m-label">Text standardized</p><p class="m-value">${textFix}</p></div>`;
+
+  const preview = auditLog.slice(0, 100);
+  $('auditCountLabel').textContent = `(showing ${preview.length} of ${auditLog.length} entries)`;
+  $('auditBody').innerHTML = preview.map(e => {
+    const [cls, label] = PILL[e.rule] || ['pill-teal', e.rule];
+    const truncate = (s, n) => s.length > n ? s.slice(0,n)+'…' : s;
+    return `<tr>
+      <td class="mono-cell">${e.rowId}</td>
+      <td title="${e.col}">${truncate(e.col,18)}</td>
+      <td class="mono-cell" title="${e.old}">${truncate(e.old,12)}</td>
+      <td class="mono-cell" title="${e.nw}">${truncate(e.nw,12)}</td>
+      <td><span class="pill ${cls}">${label}</span></td>
+      <td style="font-size:11px;color:#6b6860">${truncate(e.reason,45)}</td>
+      <td class="mono-cell" style="font-size:10px">${e.ts}</td>
+    </tr>`;
+  }).join('');
+
+  show(resultsCard);
+
+  $('dlCleaned').onclick = () => downloadCSV(cleanedData.rows, cleanedData.headers, 'cleaned_dataset.csv');
+  $('dlAudit').onclick   = () => {
+    const rows = auditLog.map(e => ({'Row ID':e.rowId,'Column Name':e.col,'Old Value':e.old,'New Value':e.nw,'Reason':e.reason,'Rule Applied':e.rule,'Timestamp':e.ts}));
+    downloadCSV(rows, ['Row ID','Column Name','Old Value','New Value','Reason','Rule Applied','Timestamp'], 'audit_log.csv');
+  };
+  $('dlSummary').onclick = () => {
+    const dupRem  = auditLog.filter(e=>e.rule==='DUPLICATE_REMOVED').length;
+    const emptyR  = auditLog.filter(e=>e.rule==='EMPTY_ROW_REMOVED').length;
+    const nullF   = auditLog.filter(e=>e.rule.startsWith('NULL_FILLED')).length;
+    const textS   = auditLog.filter(e=>['TEXT_STRIPPED','TEXT_TITLE_CASED'].includes(e.rule)).length;
+    const catC    = auditLog.filter(e=>e.rule==='CATEGORY_CANONICALIZED').length;
+    const dateN   = auditLog.filter(e=>e.rule==='DATE_STANDARDIZED').length;
+    const typeC   = auditLog.filter(e=>['TYPE_COERCED_NUMERIC','INVALID_NUMERIC_NULLED'].includes(e.rule)).length;
+    const ruleMap = {};
+    auditLog.forEach(e => ruleMap[e.rule] = (ruleMap[e.rule]||0)+1);
+    const rulesText = Object.entries(ruleMap).sort((a,b)=>b[1]-a[1]).map(([r,c])=>`  ${r.padEnd(35,' ')}: ${c}`).join('\n');
+    const txt = `${'='.repeat(70)}
+  AUTO DATA CLEANER — SUMMARY REPORT
+${'='.repeat(70)}
+
+  Run Date / Time   : ${new Date().toLocaleString()}
+  Cleaning Status   : COMPLETED SUCCESSFULLY
+
+  ── Dataset Statistics ${'─'.repeat(48)}
+  Total Rows  (Before Cleaning)  : ${before.toLocaleString()}
+  Total Rows  (After  Cleaning)  : ${after.toLocaleString()}
+  Rows Removed                   : ${(before - after).toLocaleString()}
+
+  ── Cleaning Operations ${'─'.repeat(47)}
+  Duplicate Rows Removed         : ${dupRem}
+  Empty Rows Removed             : ${emptyR}
+  Null Values Filled             : ${nullF}
+  Text Values Standardized       : ${textS}
+  Categories Canonicalized       : ${catC}
+  Date Formats Corrected         : ${dateN}
+  Type Coercions Applied         : ${typeC}
+
+  ── Audit Log Breakdown ${'─'.repeat(47)}
+  Total Audit Entries            : ${auditLog.length}
+${rulesText}
+
+${'='.repeat(70)}
+  Generated by AutoDataCleaner v1.0 — Web ETL Engine
+${'='.repeat(70)}`;
+    const blob = new Blob([txt], {type:'text/plain'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'summary_report.txt'; a.click(); URL.revokeObjectURL(a.href);
+  };
+}
+
+function downloadCSV(rows, headers, filename) {
+  const esc = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const lines = [headers.map(esc).join(','), ...rows.map(r => headers.map(h => esc(r[h]??'')).join(','))];
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
